@@ -1,4 +1,4 @@
-<div ng-click="zoomOut()" style="
+<!-- <div ng-click="zoomOut()" style="
   position: absolute;
   z-index: 100;
   top: 0%;
@@ -6,7 +6,7 @@
   ">
   <button>Zoom-Out</button>
 </div>
-<div ng-click="zoomOut()" style="
+<div style="
   position: absolute;
   z-index: 100;
   top: 0%;
@@ -22,13 +22,23 @@
   left: 10%;
   ">
   <button>Zoom-In</button>
-</div>
+</div> -->
 
 <div id="gameArea">
 
 <!-- {{'hi'}}{{currentSize.width}}{{currentSize.height}} -->
 
       <canvas id="gameCanvas"></canvas>
+      <div class="fill" style="
+         position: absolute;
+         z-index: 100;
+         top: {{getSpritePosition(userPosition.x, userPosition.y).yPos}}%;
+         left: {{getSpritePosition(userPosition.x, userPosition.y).xPos}}%;
+         width: {{gameBoardSize.width / cameraZoom}}px;
+         height: {{gameBoardSize.height / cameraZoom}}px;
+         background-color: black;
+         ">
+      </div>
 
       <div class="fill" ng-repeat="tile in camera track by $index" ng-click="clickedTile(tile, $index)" style="
          position: absolute;

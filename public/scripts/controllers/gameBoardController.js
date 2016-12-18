@@ -1,51 +1,8 @@
 myApp.controller("GameBoardController", ["$scope", "$http", "$window", "$document", "$timeout", "$location",
     function($scope, $http, $window, $document, $timeout, $location) {
 
-        //BUG: At certain screen sizes the div's dont
-        //window resizeing functionality
-        $window.addEventListener('resize', resizeGame, false);
-        $window.addEventListener('orientationchange', resizeGame, false);
-
-        $scope.gameBoard = {};
-        $scope.cameraZoom = 35;
-        $scope.zoomOut = function(){
-          $scope.cameraZoom = $scope.cameraZoom + 5;
-          if ($scope.cameraZoom > 75){
-            $scope.cameraZoom = 75;
-          }
-          resizeGame();
-        }
-        $scope.zoomIn = function(){
-          $scope.cameraZoom = $scope.cameraZoom - 5;
-          if ($scope.cameraZoom < 10){
-            $scope.cameraZoom = 10;
-          }
-          resizeGame();
-        }
-        $scope.divPositions = [];
-        function getDivPositions(){
-
-          var divPositions = [];
-          var zoom = $scope.cameraZoom;
-          var divCount = zoom * zoom;
-          var tilePercentSize = 100 / zoom;
-
-          var xCount = 0;
-          var yCount = 0;
-          for(var y = 0; y < zoom; y++){
-            for(var x = 0; x < zoom; x++){
-              xCount += tilePercentSize;
-              divPositions.push({xPos: x * tilePercentSize, yPos: y * tilePercentSize})
-            }
-          }
-
-
-            // divPositions.push({xPos: i, yPos: i});
-
-          return divPositions;
-        }
-
-
+        //MARK: -- GAME WINDOW RESOLUTION RESIZEING
+        $scope.gameBoardSize = {};
 
         function resizeGame() {
             var gameArea = document.getElementById('gameArea');
@@ -77,7 +34,7 @@ myApp.controller("GameBoardController", ["$scope", "$http", "$window", "$documen
             gameCanvas.height = newHeight;
 
             $timeout(function() {
-                $scope.gameBoard = {
+                $scope.gameBoardSize = {
                     width: newWidth,
                     height: newHeight
                 };
@@ -101,32 +58,20 @@ myApp.controller("GameBoardController", ["$scope", "$http", "$window", "$documen
 
         }
 
-            resizeGame();
-
-        var worldMap = [];
-
-
-        //holds all tiles in view;
-        $scope.camera = [];
-        $scope.cameraPosition = {
-            x: 501,
-            y: 501
-        }; //init
-        //holds full world map
-        var worldMap = makeTileGrid();
-        console.log(worldMap);
+        $window.addEventListener('resize', resizeGame, false);
+        $window.addEventListener('orientationchange', resizeGame, false);
 
 
+        //MARK: -- CAMERA (current tiles in view)
+        $scope.cameraZoom = 25;
+        $scope.divPositions = [];
 
-
-
-        //MARK: CAMERA
         function findCurrentView(position) {
             var x = position.x;
             var y = position.y;
 
 
-            var view = worldMap.slice(y - ($scope.cameraZoom / 2) , y + ($scope.cameraZoom / 2));
+            var view = worldMap.slice(y - ($scope.cameraZoom / 2), y + ($scope.cameraZoom / 2));
             view = view.map(row => {
                 return row.slice(x - ($scope.cameraZoom / 2), x + ($scope.cameraZoom / 2));
             });
@@ -138,19 +83,29 @@ myApp.controller("GameBoardController", ["$scope", "$http", "$window", "$documen
 
             return camera;
         }
-        $scope.camera = findCurrentView($scope.cameraPosition); //init
+
+
 
         //MARK: MAP BUILDING FUNCTIONS
         function getTexture(x, y) {
-            // console.log(x,y);
-            if (y % 5 == 0 && x % 5 == 0 || x % 10 == 0 || y % 10 == 0) {
+            // //console.log(x,y);
+            var random = Math.random(3)
+
+            if (random > 0.3) {
                 return 'grass.png'
             }
             return 'water.png'
         }
 
-
-
+        function checkCollider(texture) {
+            switch (texture) {
+                case 'water.png':
+                    return true;
+                    break;
+                default:
+                    return false;
+            }
+        }
 
         function makeTileGrid() {
 
@@ -161,7 +116,7 @@ myApp.controller("GameBoardController", ["$scope", "$http", "$window", "$documen
             var texture = '';
 
             //assuming width is > height;
-            var tileSize = ($scope.gameBoard.width / $scope.cameraZoom)
+            var tileSize = ($scope.gameBoardSize.width / $scope.cameraZoom)
             var width = tileSize;
             var height = tileSize;
 
@@ -181,7 +136,8 @@ myApp.controller("GameBoardController", ["$scope", "$http", "$window", "$documen
                         width: width,
                         height: height,
                         texture: texture,
-                        items: items
+                        items: items,
+                        collider: checkCollider(texture)
                     });
                 }
                 gameMap.push(row);
@@ -190,47 +146,72 @@ myApp.controller("GameBoardController", ["$scope", "$http", "$window", "$documen
             return gameMap;
         }
 
+        function getDivPositions() {
+
+            var divPositions = [];
+            var zoom = $scope.cameraZoom;
+            var divCount = zoom * zoom;
+            var tilePercentSize = 100 / zoom;
+
+            var xCount = 0;
+            var yCount = 0;
+            for (var y = 0; y < zoom; y++) {
+                for (var x = 0; x < zoom; x++) {
+                    xCount += tilePercentSize;
+                    divPositions.push({
+                        xPos: x * tilePercentSize,
+                        yPos: y * tilePercentSize
+                    })
+                }
+            }
 
 
+            // divPositions.push({xPos: i, yPos: i});
+
+            return divPositions;
+        }
+
+
+
+        //MARK: -- LAYER 3 :: Sprite Positioning
+        $scope.userPosition = {
+            x: 500,
+            y: 500
+        }
+
+        var getSpritePosition = function(x, y) {
+
+            let tile = _.find($scope.camera, function(tile) {
+                return tile.x == x && tile.y == y;
+            });
+            let index = _.indexOf($scope.camera, tile);
+            //console.log(getDivPositions()[index])
+            return getDivPositions()[index];
+
+        }
+
+        $scope.getSpritePosition = function(x, y) {
+            return getSpritePosition(x, y);
+        }
+
+        $scope.clickedTile = function(tile) {
+            //console.log(tile);
+        }
         $document.bind("keydown", function(event) {
-            console.log(event.key);
+            //console.log(event.key);
 
             switch (event.key) {
                 case "w":
-                    if ($scope.cameraPosition.y != 11) {
-                        $scope.cameraPosition.y -= 1;
-                        console.log($scope.cameraPosition);
-                        $scope.$apply(function() {
-                            $scope.camera = findCurrentView($scope.cameraPosition)
-                        })
-                    }
+                    moveCameraUp();
                     break;
                 case "s":
-                    if ($scope.cameraPosition.y != 989) {
-                        $scope.cameraPosition.y += 1;
-                        console.log($scope.cameraPosition);
-                        $scope.$apply(function() {
-                            $scope.camera = findCurrentView($scope.cameraPosition)
-                        })
-                    }
+                    moveCameraDown();
                     break;
                 case "a":
-                    if ($scope.cameraPosition.x != 20) {
-                        $scope.cameraPosition.x -= 1;
-                        console.log($scope.cameraPosition);
-                        $scope.$apply(function() {
-                            $scope.camera = findCurrentView($scope.cameraPosition)
-                        })
-                    }
+                    moveCameraLeft();
                     break;
                 case "d":
-                    if ($scope.cameraPosition.x != 980) {
-                        $scope.cameraPosition.x += 1;
-                        console.log($scope.cameraPosition);
-                        $scope.$apply(function() {
-                            $scope.camera = findCurrentView($scope.cameraPosition)
-                        })
-                    }
+                    moveCameraRight();
                     break;
 
                 case "e":
@@ -246,72 +227,136 @@ myApp.controller("GameBoardController", ["$scope", "$http", "$window", "$documen
                         $scope.showUserSettings = !$scope.showUserSettings;
 
                     })
+                    break;
+
+                case "ArrowUp":
+                    event.preventDefault();
+                    if (worldMap[$scope.userPosition.x - 1][$scope.userPosition.y].collider != true) {
+
+                        $timeout(function() {
+                            if (getSpritePosition($scope.userPosition.x, $scope.userPosition.y).yPos <= 8) {
+                                moveCameraUp();
+                            }
+
+                            $scope.userPosition.x--
+                        }, 0)
+                    }
+                    break;
+
+                case "ArrowDown":
+                    event.preventDefault();
+                    if (worldMap[$scope.userPosition.x + 1][$scope.userPosition.y].collider != true) {
+
+                        $timeout(function() {
+                            if (getSpritePosition($scope.userPosition.x, $scope.userPosition.y).yPos >= 88) {
+                                moveCameraDown();
+                            }
+                            $scope.userPosition.x++
+                        }, 0)
+                    }
+                    break;
+                case "ArrowLeft":
+                    event.preventDefault();
+                    if (worldMap[$scope.userPosition.x][$scope.userPosition.y - 1].collider != true) {
+
+                        $timeout(function() {
+                            if (getSpritePosition($scope.userPosition.x, $scope.userPosition.y).xPos <= 8) {
+                                moveCameraLeft();
+                            }
+                            $scope.userPosition.y--
+                        }, 0)
+                    }
+                    break;
+                case "ArrowRight":
+                    event.preventDefault();
+                    if (worldMap[$scope.userPosition.x][$scope.userPosition.y + 1].collider != true) {
+
+                        $timeout(function() {
+                            if (getSpritePosition($scope.userPosition.x, $scope.userPosition.y).xPos >= 88) {
+                                moveCameraRight();
+                            }
+                            $scope.userPosition.y++
+                        }, 0)
+                    }
+                    break;
 
             }
-            // if (event.key == "ArrowUp") {
-            //
-            //     event.preventDefault(); //would prevent from tabbing all over the screen
-            // }
+
         });
 
+        function moveCameraDown() {
+            if ($scope.cameraPosition.y != 989) {
+                $scope.cameraPosition.y += 1;
+                //console.log($scope.cameraPosition);
+                $scope.$apply(function() {
+                    $scope.camera = findCurrentView($scope.cameraPosition)
+                })
+            }
+        }
 
+        function moveCameraUp() {
+            if ($scope.cameraPosition.y != 11) {
+                $scope.cameraPosition.y -= 1;
+                //console.log($scope.cameraPosition);
+                $scope.$apply(function() {
+                    $scope.camera = findCurrentView($scope.cameraPosition)
+                })
+            }
+        }
 
+        function moveCameraLeft() {
+            if ($scope.cameraPosition.x != 20) {
+                $scope.cameraPosition.x -= 1;
+                //console.log($scope.cameraPosition);
+                $scope.$apply(function() {
+                    $scope.camera = findCurrentView($scope.cameraPosition)
+                })
+            }
+        }
+
+        function moveCameraRight() {
+            if ($scope.cameraPosition.x != 980) {
+                $scope.cameraPosition.x += 1;
+                //console.log($scope.cameraPosition);
+                $scope.$apply(function() {
+                    $scope.camera = findCurrentView($scope.cameraPosition)
+                })
+            }
+        }
+
+        //MARK: -- INIT
+        resizeGame();
+        var worldMap = makeTileGrid();
+
+        $scope.cameraPosition = {
+            x: 500,
+            y: 500
+        };
+        $scope.camera = findCurrentView($scope.cameraPosition);
 
     }
 ]);
 
 
-// var bioms = [{key: 'w', texture: 'water.png'}, {key: 'g', texture: 'grass.png', key: 'm', texture: 'mountain.png'}]
-//
-//
-// //holds full world map
-// $scope.worldMap = makeTileGrid(4152);
-//
-// //MARK: CLICK FUNCTIONS
-//
-//
-// //MARK: MAP BUILDING FUNCTIONS
-//
-// function makeTileGrid(seed) {
-//     var cols = 1000;
-//     var rows = 1000;
-//     var map = [];
-//
-//     //builds map array with cords.
-//     for(x=0;x<cols;x++){
-//       var row = [];
-//       for(y=0;y<rows;y++){
-//         row.push({x: x, y: y, texture: 'grass.png'})
-//       }
-//       map.push(row);
-//     }
-//     // console.log(map[4][10]) // Object {x: 4, y: 10}
-//
-//     var eastCoast = map.slice(900)
-//     var westCoast = map.slice(0,100);
-//     var northCoast = map.map(col=>{
-//       return col.slice(0,100);
-//     })
-//     var southCoast = map.map(col=>{
-//       return col.slice(900);
-//     })
-//
-//     var coasts = [eastCoast, westCoast, northCoast, southCoast]
-//     coasts = coasts.map(coast=>{
-//       return coast.map(col=>{
-//         return col.map(tile=>{
-//           tile.texture = 'water.png'
-//         })
-//       })
-//     })
-//
-//     return seed
+// $scope.zoomOut = function(){
+//   $scope.cameraZoom = $scope.cameraZoom + 5;
+//   if ($scope.cameraZoom > 75){
+//     $scope.cameraZoom = 75;
+//   }
+//   resizeGame();
 // }
-
-function makeWaterSeed() {
-    //wip
-    var waterSeed = [Math.floor((Math.random() * 300) + 1), Math.floor((Math.random() * 300) + 1)];
-    var waterWidth = Math.floor((Math.random() * 100) + 1)
-    var waterHeight = Math.floor((Math.random() * 100) + 1)
-    return null;
-}
+// $scope.zoomIn = function(){
+//   $scope.cameraZoom = $scope.cameraZoom - 5;
+//   if ($scope.cameraZoom < 10){
+//     $scope.cameraZoom = 10;
+//   }
+//   resizeGame();
+// }
+//
+// function makeWaterSeed() {
+//     //wip
+//     var waterSeed = [Math.floor((Math.random() * 300) + 1), Math.floor((Math.random() * 300) + 1)];
+//     var waterWidth = Math.floor((Math.random() * 100) + 1)
+//     var waterHeight = Math.floor((Math.random() * 100) + 1)
+//     return null;
+// }
